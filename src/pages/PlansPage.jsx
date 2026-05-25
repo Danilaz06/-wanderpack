@@ -22,23 +22,42 @@ export default function PlansPage() {
 
   async function fetchPlans() {
     setLoading(true)
-    // Fetch all plans (no member filter — all users see all plans)
-    const { data, error } = await supabase
+    // Fetch plans without nested join
+    const { data: plansData, error } = await supabase
       .from('plans')
-      .select(`*, plan_members(user_id, profiles(id, full_name, avatar_url, email))`)
+      .select('*')
       .order('start_date', { ascending: true })
-    if (error) console.error(error)
-    setPlans(data || [])
+    
+    if (error) { console.error(error); setLoading(false); return }
+
+    // Fetch members separately
+    const { data: membersData } = await supabase
+      .from('plan_members')
+      .select('plan_id, user_id')
+
+    // Fetch profiles separately
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, full_name, avatar_url, email')
+
+    // Combine manually
+    const profilesMap = {}
+    profilesData?.forEach(p => { profilesMap[p.id] = p })
+
+    const plansList = plansData.map(plan => {
+      const planMembers = membersData?.filter(m => m.plan_id === plan.id) || []
+      const members = planMembers.map(m => profilesMap[m.user_id]).filter(Boolean)
+      return { ...plan, members }
+    })
+
+    setPlans(plansList)
     setLoading(false)
   }
 
   async function deletePlan(e, planId, createdBy) {
     e.stopPropagation()
-    if (createdBy !== user.id) {
-      alert('Solo el creador del plan puede borrarlo')
-      return
-    }
-    if (!confirm('¿Seguro que quieres borrar este plan? Se borrará todo (chat, encuestas, disponibilidad)')) return
+    if (createdBy !== user.id) { alert('Solo el creador puede borrar este plan'); return }
+    if (!confirm('¿Seguro que quieres borrar este plan?')) return
     setDeletingId(planId)
     await supabase.from('plans').delete().eq('id', planId)
     setPlans(p => p.filter(pl => pl.id !== planId))
@@ -79,7 +98,6 @@ export default function PlansPage() {
       ) : (
         <div className="plans-grid">
           {plans.map(plan => {
-            const members = plan.plan_members?.map(m => m.profiles).filter(Boolean) || []
             const color = PLAN_COLORS[plan.color_index || 0]
             const isCreator = plan.created_by === user.id
             return (
@@ -97,7 +115,6 @@ export default function PlansPage() {
                         style={{ padding: '4px 8px', color: '#dc2626', flexShrink: 0 }}
                         onClick={e => deletePlan(e, plan.id, plan.created_by)}
                         disabled={deletingId === plan.id}
-                        title="Borrar plan"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -112,20 +129,12 @@ export default function PlansPage() {
                   )}
                   <div className="plan-card-footer">
                     <div className="avatar-stack">
-                      {members.slice(0, 5).map(m => (
+                      {plan.members?.slice(0, 5).map(m => (
                         <Avatar key={m.id} profile={m} />
                       ))}
-                      {members.length > 5 && (
-                        <div className="avatar" style={{ background: 'var(--sand-dark)', color: 'var(--ink-light)', fontSize: '0.65rem', fontWeight: 700, width: 28, height: 28, border: '2px solid white', marginLeft: -8 }}>
-                          +{members.length - 5}
-                        </div>
-                      )}
-                      {members.length === 0 && (
-                        <span style={{ fontSize: '0.78rem', color: 'var(--ink-light)' }}>Sin miembros aún</span>
-                      )}
                     </div>
                     <span style={{ fontSize: '0.75rem', color: 'var(--ink-light)' }}>
-                      {members.length} {members.length === 1 ? 'persona' : 'personas'}
+                      {plan.members?.length || 0} personas
                     </span>
                   </div>
                 </div>
