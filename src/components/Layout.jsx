@@ -32,7 +32,7 @@ export function Avatar({ profile, size = '' }) {
 const NAV_ITEMS = [
   { path: '/calendar', label: 'Calendario', icon: Calendar },
   { path: '/plans', label: 'Planes', icon: MapPin },
-  { path: '/profile', label: 'Mi perfil', icon: User },
+  { path: '/profile', label: 'Perfil', icon: User },
 ]
 
 export default function Layout() {
@@ -47,6 +47,7 @@ export default function Layout() {
 
   return (
     <div className="app-layout">
+      {/* Sidebar desktop */}
       <aside className="sidebar">
         <div className="sidebar-logo">
           <h1>Anémonas</h1>
@@ -76,9 +77,29 @@ export default function Layout() {
           </button>
         </div>
       </aside>
+
+      {/* Main content */}
       <main className="main-content">
         <Outlet />
       </main>
+
+      {/* Bottom nav móvil */}
+      <nav className="bottom-nav">
+        {NAV_ITEMS.map(({ path, label, icon: Icon }) => (
+          <button
+            key={path}
+            className={`bottom-nav-item ${location.pathname.startsWith(path) ? 'active' : ''}`}
+            onClick={() => navigate(path)}
+          >
+            <Icon size={22} />
+            <span>{label}</span>
+          </button>
+        ))}
+        <button className="bottom-nav-item" onClick={handleLogout}>
+          <LogOut size={22} />
+          <span>Salir</span>
+        </button>
+      </nav>
     </div>
   )
 }
