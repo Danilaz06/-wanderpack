@@ -37,7 +37,7 @@ export default function MembersPage() {
   return (
     <div>
       <div className="page-header">
-        <h2>El grupo</h2>
+        <h2>El grupico</h2>
         <p>{members.length} personas en la app</p>
       </div>
 
