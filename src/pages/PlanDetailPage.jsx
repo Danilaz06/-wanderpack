@@ -4,15 +4,14 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ArrowLeft, Send, Plus, Trash2, Calendar, Users, MessageSquare, BarChart2, Check } from 'lucide-react'
-import { Avatar, getInitials, getColor } from '../components/Layout'
+import { ArrowLeft, Send, Plus, Calendar, Users, MessageSquare, BarChart2, Check } from 'lucide-react'
+import { Avatar } from '../components/Layout'
 
 const PLAN_COLORS = ['#C4622D','#2D6E8E','#5C7A5E','#D4A827','#7C4F8E']
-const EMOJIS = ['✈️','🏝️','⛺','🏔️','🌊','🎿','🏄','🚂','🗺️','🏕️']
 
 export default function PlanDetailPage() {
   const { id } = useParams()
-  const { user, profile } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
   const [plan, setPlan] = useState(null)
   const [members, setMembers] = useState([])
@@ -20,19 +19,16 @@ export default function PlanDetailPage() {
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState(false)
 
-  // Chat
   const [messages, setMessages] = useState([])
   const [msgText, setMsgText] = useState('')
   const messagesEndRef = useRef(null)
 
-  // Polls
   const [polls, setPolls] = useState([])
   const [showPollForm, setShowPollForm] = useState(false)
   const [pollQ, setPollQ] = useState('')
   const [pollOpts, setPollOpts] = useState(['', ''])
   const [myVotes, setMyVotes] = useState({})
 
-  // Availability
   const [availability, setAvailability] = useState([])
 
   useEffect(() => { fetchAll() }, [id])
@@ -40,7 +36,7 @@ export default function PlanDetailPage() {
   useEffect(() => {
     const channel = supabase
       .channel(`chat-${id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `plan_id=eq.${id}` }, payload => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `plan_id=eq.${id}` }, () => {
         fetchMessages()
       })
       .subscribe()
@@ -58,51 +54,65 @@ export default function PlanDetailPage() {
   }
 
   async function fetchPlan() {
-    const { data } = await supabase
-      .from('plans')
-      .select(`*, plan_members(user_id, profiles(id, full_name, avatar_url, email))`)
-      .eq('id', id)
-      .single()
-    if (data) {
-      setPlan(data)
-      setMembers(data.plan_members?.map(m => m.profiles).filter(Boolean) || [])
+    const { data: planData } = await supabase.from('plans').select('*').eq('id', id).single()
+    if (!planData) return
+    setPlan(planData)
+
+    // Fetch members separately
+    const { data: memberRows } = await supabase.from('plan_members').select('user_id').eq('plan_id', id)
+    if (memberRows?.length) {
+      const userIds = memberRows.map(m => m.user_id)
+      const { data: profiles } = await supabase.from('profiles').select('id, full_name, avatar_url, email').in('id', userIds)
+      setMembers(profiles || [])
+    } else {
+      setMembers([])
     }
   }
 
   async function fetchMessages() {
-    const { data } = await supabase
-      .from('messages')
-      .select(`*, profiles(id, full_name, avatar_url, email)`)
-      .eq('plan_id', id)
-      .order('created_at', { ascending: true })
-    setMessages(data || [])
+    const { data: msgs } = await supabase.from('messages').select('*').eq('plan_id', id).order('created_at', { ascending: true })
+    if (!msgs?.length) { setMessages([]); return }
+
+    const userIds = [...new Set(msgs.map(m => m.user_id))]
+    const { data: profiles } = await supabase.from('profiles').select('id, full_name, avatar_url, email').in('id', userIds)
+    const profilesMap = {}
+    profiles?.forEach(p => { profilesMap[p.id] = p })
+
+    setMessages(msgs.map(m => ({ ...m, profiles: profilesMap[m.user_id] })))
   }
 
   async function fetchPolls() {
-    const { data: pollsData } = await supabase
-      .from('polls')
-      .select(`*, poll_options(id, text, poll_votes(user_id))`)
-      .eq('plan_id', id)
-      .order('created_at')
-    setPolls(pollsData || [])
+    const { data: pollsData } = await supabase.from('polls').select('*').eq('plan_id', id).order('created_at')
+    if (!pollsData?.length) { setPolls([]); return }
 
-    const votes = {}
-    pollsData?.forEach(poll => {
-      poll.poll_options?.forEach(opt => {
-        if (opt.poll_votes?.some(v => v.user_id === user?.id)) {
-          votes[poll.id] = opt.id
-        }
-      })
-    })
-    setMyVotes(votes)
+    const pollIds = pollsData.map(p => p.id)
+    const { data: options } = await supabase.from('poll_options').select('*').in('poll_id', pollIds)
+    const { data: votes } = await supabase.from('poll_votes').select('*').in('poll_id', pollIds)
+
+    const myVotesMap = {}
+    votes?.filter(v => v.user_id === user?.id).forEach(v => { myVotesMap[v.poll_id] = v.option_id })
+    setMyVotes(myVotesMap)
+
+    const enriched = pollsData.map(poll => ({
+      ...poll,
+      poll_options: options?.filter(o => o.poll_id === poll.id).map(opt => ({
+        ...opt,
+        poll_votes: votes?.filter(v => v.option_id === opt.id) || []
+      })) || []
+    }))
+    setPolls(enriched)
   }
 
   async function fetchAvailability() {
-    const { data } = await supabase
-      .from('availability')
-      .select(`*, profiles(id, full_name, avatar_url, email)`)
-      .eq('plan_id', id)
-    setAvailability(data || [])
+    const { data: avRows } = await supabase.from('availability').select('*').eq('plan_id', id)
+    if (!avRows?.length) { setAvailability([]); return }
+
+    const userIds = [...new Set(avRows.map(a => a.user_id))]
+    const { data: profiles } = await supabase.from('profiles').select('id, full_name, avatar_url, email').in('id', userIds)
+    const profilesMap = {}
+    profiles?.forEach(p => { profilesMap[p.id] = p })
+
+    setAvailability(avRows.map(a => ({ ...a, profiles: profilesMap[a.user_id] })))
   }
 
   async function sendMessage(e) {
@@ -110,6 +120,7 @@ export default function PlanDetailPage() {
     if (!msgText.trim()) return
     await supabase.from('messages').insert({ plan_id: id, user_id: user.id, content: msgText.trim() })
     setMsgText('')
+    fetchMessages()
   }
 
   async function createPoll(e) {
@@ -140,7 +151,7 @@ export default function PlanDetailPage() {
 
   async function joinPlan() {
     setJoining(true)
-    await supabase.from("plan_members").upsert({ plan_id: id, user_id: user.id }, { onConflict: "plan_id,user_id" })
+    await supabase.from('plan_members').upsert({ plan_id: id, user_id: user.id }, { onConflict: 'plan_id,user_id' })
     await fetchPlan()
     setJoining(false)
   }
@@ -149,17 +160,18 @@ export default function PlanDetailPage() {
     return availability.find(a => a.user_id === user?.id)?.status
   }
 
-  if (loading) return <div className="spinner" style={{ marginTop: 60 }} />
-  if (!plan) return <div>Plan no encontrado</div>
-
-  const color = PLAN_COLORS[plan.color_index || 0]
-
   function formatDateRange(start, end) {
     const s = new Date(start + 'T00:00:00')
     const e = new Date(end + 'T00:00:00')
     if (start === end) return format(s, "d 'de' MMMM yyyy", { locale: es })
     return `${format(s, "d 'de' MMM", { locale: es })} – ${format(e, "d 'de' MMMM yyyy", { locale: es })}`
   }
+
+  if (loading) return <div className="spinner" style={{ marginTop: 60 }} />
+  if (!plan) return <div>Plan no encontrado</div>
+
+  const color = PLAN_COLORS[plan.color_index || 0]
+  const isMember = members.find(m => m.id === user?.id)
 
   return (
     <div>
@@ -178,19 +190,17 @@ export default function PlanDetailPage() {
               <Calendar size={15} /> {formatDateRange(plan.start_date, plan.end_date)}
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.88rem', color: 'var(--ink-light)' }}>
-              <Users size={15} /> {members.length} {members.length === 1 ? 'persona' : 'personas'}
+              <Users size={15} /> {members.length} personas
             </span>
+            {!isMember && (
+              <button className="btn btn-primary btn-sm" onClick={joinPlan} disabled={joining}>
+                {joining ? '...' : '+ Unirme al plan'}
+              </button>
+            )}
           </div>
           {plan.description && <p style={{ marginTop: 10, color: 'var(--ink-light)', fontSize: '0.9rem' }}>{plan.description}</p>}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexDirection: 'column' }}>
-          <div style={{ width: 8, height: 60, borderRadius: 4, background: color, flexShrink: 0 }} />
-          {!members.find(m => m.id === user?.id) && (
-            <button className="btn btn-primary btn-sm" onClick={joinPlan} disabled={joining}>
-              {joining ? '...' : '+ Unirme'}
-            </button>
-          )}
-        </div>
+        <div style={{ width: 8, height: 60, borderRadius: 4, background: color, flexShrink: 0 }} />
       </div>
 
       <div className="plan-tabs">
@@ -205,7 +215,6 @@ export default function PlanDetailPage() {
         </button>
       </div>
 
-      {/* CHAT */}
       {tab === 'chat' && (
         <div className="card">
           <div className="chat-container">
@@ -232,21 +241,13 @@ export default function PlanDetailPage() {
               <div ref={messagesEndRef} />
             </div>
             <form className="chat-input-row" onSubmit={sendMessage}>
-              <input
-                className="input"
-                placeholder="Escribe un mensaje..."
-                value={msgText}
-                onChange={e => setMsgText(e.target.value)}
-              />
-              <button className="btn btn-primary" type="submit" disabled={!msgText.trim()}>
-                <Send size={16} />
-              </button>
+              <input className="input" placeholder="Escribe un mensaje..." value={msgText} onChange={e => setMsgText(e.target.value)} />
+              <button className="btn btn-primary" type="submit" disabled={!msgText.trim()}><Send size={16} /></button>
             </form>
           </div>
         </div>
       )}
 
-      {/* POLLS */}
       {tab === 'polls' && (
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -300,11 +301,7 @@ export default function PlanDetailPage() {
                   const pct = totalVotes ? Math.round((votes / totalVotes) * 100) : 0
                   const isMyVote = myVote === opt.id
                   return (
-                    <div
-                      key={opt.id}
-                      className={`poll-option ${isMyVote ? 'voted' : ''}`}
-                      onClick={() => vote(poll.id, opt.id)}
-                    >
+                    <div key={opt.id} className={`poll-option ${isMyVote ? 'voted' : ''}`} onClick={() => vote(poll.id, opt.id)}>
                       {isMyVote && <Check size={14} color="var(--terracotta)" />}
                       <span style={{ flex: 1, fontSize: '0.88rem' }}>{opt.text}</span>
                       <div className="poll-bar-container">
@@ -321,7 +318,6 @@ export default function PlanDetailPage() {
         </div>
       )}
 
-      {/* AVAILABILITY */}
       {tab === 'availability' && (
         <div className="card">
           <div style={{ marginBottom: 20 }}>
@@ -335,11 +331,7 @@ export default function PlanDetailPage() {
               { status: 'maybe', label: '🤔 Tal vez', cls: 'avail-maybe' },
               { status: 'no', label: '❌ No puedo', cls: 'avail-no' },
             ].map(({ status, label, cls }) => (
-              <button
-                key={status}
-                className={`avail-btn ${cls} ${getMyAvail() === status ? 'selected' : ''}`}
-                onClick={() => setAvail(status)}
-              >
+              <button key={status} className={`avail-btn ${cls} ${getMyAvail() === status ? 'selected' : ''}`} onClick={() => setAvail(status)}>
                 {label}
               </button>
             ))}
@@ -347,27 +339,21 @@ export default function PlanDetailPage() {
 
           <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--ink-light)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Respuestas del grupo</h4>
 
-          {members.length === 0 ? (
-            <p style={{ color: 'var(--ink-light)', fontSize: '0.88rem' }}>Sin miembros todavía</p>
-          ) : (
-            <div className="availability-grid">
-              {members.map(m => {
-                const avail = availability.find(a => a.user_id === m.id)
-                const statusMap = { yes: { label: 'Va ✅', color: 'var(--sage)' }, maybe: { label: 'Tal vez 🤔', color: '#9a7a10' }, no: { label: 'No puede ❌', color: '#dc2626' } }
-                const s = avail ? statusMap[avail.status] : null
-                return (
-                  <div key={m.id} className="avail-row">
-                    <Avatar profile={m} />
-                    <span className="avail-name">{m.full_name || m.email}</span>
-                    {s
-                      ? <span style={{ fontSize: '0.82rem', fontWeight: 700, color: s.color }}>{s.label}</span>
-                      : <span style={{ fontSize: '0.82rem', color: 'var(--ink-light)', fontStyle: 'italic' }}>Sin respuesta</span>
-                    }
-                  </div>
-                )
-              })}
-            </div>
-          )}
+          <div className="availability-grid">
+            {members.map(m => {
+              const avail = availability.find(a => a.user_id === m.id)
+              const statusMap = { yes: { label: 'Va ✅', color: 'var(--sage)' }, maybe: { label: 'Tal vez 🤔', color: '#9a7a10' }, no: { label: 'No puede ❌', color: '#dc2626' } }
+              const s = avail ? statusMap[avail.status] : null
+              return (
+                <div key={m.id} className="avail-row">
+                  <Avatar profile={m} />
+                  <span className="avail-name">{m.full_name || m.email}</span>
+                  {s ? <span style={{ fontSize: '0.82rem', fontWeight: 700, color: s.color }}>{s.label}</span>
+                    : <span style={{ fontSize: '0.82rem', color: 'var(--ink-light)', fontStyle: 'italic' }}>Sin respuesta</span>}
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
     </div>
