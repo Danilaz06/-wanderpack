@@ -30,6 +30,7 @@ export default function PlanDetailPage() {
   const [myVotes, setMyVotes] = useState({})
 
   const [availability, setAvailability] = useState([])
+  const [commitments, setCommitments] = useState({})
 
   useEffect(() => { fetchAll() }, [id])
 
@@ -49,7 +50,7 @@ export default function PlanDetailPage() {
 
   async function fetchAll() {
     setLoading(true)
-    await Promise.all([fetchPlan(), fetchMessages(), fetchPolls(), fetchAvailability()])
+    await Promise.all([fetchPlan(), fetchMessages(), fetchPolls(), fetchAvailability(), fetchCommitments()])
     setLoading(false)
   }
 
@@ -113,6 +114,20 @@ export default function PlanDetailPage() {
     profiles?.forEach(p => { profilesMap[p.id] = p })
 
     setAvailability(avRows.map(a => ({ ...a, profiles: profilesMap[a.user_id] })))
+  }
+
+  async function fetchCommitments() {
+    if (!plan) return
+    const { data: memberRows } = await supabase.from('plan_members').select('user_id').eq('plan_id', id)
+    if (!memberRows?.length) return
+    const userIds = memberRows.map(m => m.user_id)
+    const { data } = await supabase.from('commitments').select('*').in('user_id', userIds)
+    const map = {}
+    data?.forEach(c => {
+      if (!map[c.user_id]) map[c.user_id] = []
+      map[c.user_id].push(c)
+    })
+    setCommitments(map)
   }
 
   async function sendMessage(e) {
@@ -342,14 +357,38 @@ export default function PlanDetailPage() {
           <div className="availability-grid">
             {members.map(m => {
               const avail = availability.find(a => a.user_id === m.id)
-              const statusMap = { yes: { label: 'Va ✅', color: 'var(--sage)' }, maybe: { label: 'Tal vez 🤔', color: '#9a7a10' }, no: { label: 'No puede ❌', color: '#dc2626' } }
+              const statusMap = { yes: { label: 'Va', color: 'var(--sage)' }, maybe: { label: 'Tal vez', color: '#9a7a10' }, no: { label: 'No puede', color: '#dc2626' } }
               const s = avail ? statusMap[avail.status] : null
+              const userCommitments = (commitments[m.id] || []).filter(c => {
+                const cs = new Date(c.start_date + 'T00:00:00')
+                const ce = new Date(c.end_date + 'T00:00:00')
+                const ps = new Date(plan.start_date + 'T00:00:00')
+                const pe = new Date(plan.end_date + 'T00:00:00')
+                return cs <= pe && ce >= ps
+              })
               return (
-                <div key={m.id} className="avail-row">
-                  <Avatar profile={m} />
-                  <span className="avail-name">{m.full_name || m.email}</span>
-                  {s ? <span style={{ fontSize: '0.82rem', fontWeight: 700, color: s.color }}>{s.label}</span>
-                    : <span style={{ fontSize: '0.82rem', color: 'var(--ink-light)', fontStyle: 'italic' }}>Sin respuesta</span>}
+                <div key={m.id} style={{ background: 'var(--sand)', borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <Avatar profile={m} />
+                    <span style={{ flex: 1, fontWeight: 600, fontSize: '0.88rem' }}>{m.full_name || m.email}</span>
+                    {s ? <span style={{ fontSize: '0.78rem', fontWeight: 700, color: s.color }}>{s.label}</span>
+                      : <span style={{ fontSize: '0.78rem', color: 'var(--ink-light)', fontStyle: 'italic' }}>Sin respuesta</span>}
+                  </div>
+                  {userCommitments.length > 0 && (
+                    <div style={{ marginTop: 8, paddingLeft: 44 }}>
+                      {userCommitments.map(c => (
+                        <div key={c.id} style={{ fontSize: '0.78rem', color: '#dc2626', display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
+                          <span>📌</span>
+                          <span>{c.title} ({new Date(c.start_date+'T00:00:00').toLocaleDateString('es-ES',{day:'numeric',month:'short'})} - {new Date(c.end_date+'T00:00:00').toLocaleDateString('es-ES',{day:'numeric',month:'short'})})</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {userCommitments.length === 0 && avail?.status !== 'no' && (
+                    <div style={{ marginTop: 6, paddingLeft: 44, fontSize: '0.75rem', color: 'var(--sage)' }}>
+                      Sin compromisos en estas fechas
+                    </div>
+                  )}
                 </div>
               )
             })}
