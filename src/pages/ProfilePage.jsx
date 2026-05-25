@@ -47,7 +47,7 @@ export default function ProfilePage() {
     if (!file) return
     setUploading(true); setError('')
     const ext = file.name.split('.').pop()
-    const path = 'avatars/' + user.id + '.' + ext
+    const path = 'avatars/' + user.id + '_' + Date.now() + '.' + ext
     const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
     if (upErr) { setError('Error al subir foto'); setUploading(false); return }
     const { data } = supabase.storage.from('avatars').getPublicUrl(path)
