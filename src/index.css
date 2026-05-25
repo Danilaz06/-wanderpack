@@ -716,3 +716,44 @@ textarea.input { resize: vertical; min-height: 80px; }
   .sidebar { display: none; }
   .main-content { margin-left: 0; }
 }
+
+/* BOTTOM NAV MÓVIL */
+.bottom-nav {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .sidebar { display: none; }
+  .main-content { 
+    margin-left: 0; 
+    padding: 20px 16px 90px;
+  }
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--ink);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    z-index: 200;
+    padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+  }
+  .bottom-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.5);
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 6px 4px;
+    cursor: pointer;
+    transition: color 0.15s;
+    font-family: var(--font-body);
+  }
+  .bottom-nav-item.active { color: var(--terracotta-light); }
+  .bottom-nav-item:hover { color: white; }
+}
