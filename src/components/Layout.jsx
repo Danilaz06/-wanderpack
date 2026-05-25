@@ -1,7 +1,7 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
-import { Calendar, MapPin, User, LogOut } from 'lucide-react'
+import { Calendar, MapPin, User, LogOut, Users } from 'lucide-react'
 
 const COLORS = ['#C4622D','#2D6E8E','#5C7A5E','#D4A827','#7C4F8E']
 
@@ -32,6 +32,7 @@ export function Avatar({ profile, size = '' }) {
 const NAV_ITEMS = [
   { path: '/calendar', label: 'Calendario', icon: Calendar },
   { path: '/plans', label: 'Planes', icon: MapPin },
+  { path: '/members', label: 'El grupo', icon: Users },
   { path: '/profile', label: 'Perfil', icon: User },
 ]
 
@@ -47,7 +48,6 @@ export default function Layout() {
 
   return (
     <div className="app-layout">
-      {/* Sidebar desktop */}
       <aside className="sidebar">
         <div className="sidebar-logo">
           <h1>Anémonas</h1>
@@ -78,12 +78,10 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* Main content */}
       <main className="main-content">
         <Outlet />
       </main>
 
-      {/* Bottom nav móvil */}
       <nav className="bottom-nav">
         {NAV_ITEMS.map(({ path, label, icon: Icon }) => (
           <button
