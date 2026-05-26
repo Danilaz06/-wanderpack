@@ -36,6 +36,7 @@ export default function CalendarPage() {
 
   function getPlansForDay(day) {
     return plans.filter(p => {
+      if (p.open_dates || !p.start_date) return false
       const start = new Date(p.start_date + 'T00:00:00')
       const end = new Date(p.end_date + 'T00:00:00')
       return day >= start && day <= end
