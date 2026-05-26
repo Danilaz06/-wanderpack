@@ -30,6 +30,10 @@ export default function PlanDetailPage() {
   const [myVotes, setMyVotes] = useState({})
 
   const [availability, setAvailability] = useState([])
+  const [dateProposals, setDateProposals] = useState([])
+  const [propStart, setPropStart] = useState('')
+  const [propEnd, setPropEnd] = useState('')
+  const [savingProp, setSavingProp] = useState(false)
   const [commitments, setCommitments] = useState({})
 
   useEffect(() => { fetchAll() }, [id])
@@ -50,7 +54,7 @@ export default function PlanDetailPage() {
 
   async function fetchAll() {
     setLoading(true)
-    await Promise.all([fetchPlan(), fetchMessages(), fetchPolls(), fetchAvailability(), fetchCommitments()])
+    await Promise.all([fetchPlan(), fetchMessages(), fetchPolls(), fetchAvailability(), fetchCommitments(), fetchDateProposals()])
     setLoading(false)
   }
 
@@ -130,6 +134,29 @@ export default function PlanDetailPage() {
     setCommitments(map)
   }
 
+  async function fetchDateProposals() {
+    const { data } = await supabase.from('date_proposals').select('*').eq('plan_id', id).order('created_at')
+    if (!data?.length) { setDateProposals([]); return }
+    const userIds = [...new Set(data.map(d => d.user_id))]
+    const { data: profiles } = await supabase.from('profiles').select('id, full_name, avatar_url, email').in('id', userIds)
+    const pm = {}; profiles?.forEach(p => { pm[p.id] = p })
+    setDateProposals(data.map(d => ({ ...d, profile: pm[d.user_id] })))
+  }
+
+  async function addDateProposal() {
+    if (!propStart) return
+    setSavingProp(true)
+    await supabase.from('date_proposals').insert({ plan_id: id, user_id: user.id, proposed_start: propStart, proposed_end: propEnd || propStart })
+    setPropStart(''); setPropEnd('')
+    await fetchDateProposals()
+    setSavingProp(false)
+  }
+
+  async function deleteDateProposal(propId) {
+    await supabase.from('date_proposals').delete().eq('id', propId)
+    setDateProposals(p => p.filter(x => x.id !== propId))
+  }
+
   async function sendMessage(e) {
     e.preventDefault()
     if (!msgText.trim()) return
@@ -176,10 +203,15 @@ export default function PlanDetailPage() {
   }
 
   function formatDateRange(start, end) {
+    if (!start) return 'Fechas por decidir'
     const s = new Date(start + 'T00:00:00')
     const e = new Date(end + 'T00:00:00')
     if (start === end) return format(s, "d 'de' MMMM yyyy", { locale: es })
     return `${format(s, "d 'de' MMM", { locale: es })} – ${format(e, "d 'de' MMMM yyyy", { locale: es })}`
+  }
+
+  function formatShortDate(d) {
+    return new Date(d + 'T00:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
   }
 
   if (loading) return <div className="spinner" style={{ marginTop: 60 }} />
@@ -213,6 +245,11 @@ export default function PlanDetailPage() {
               </button>
             )}
           </div>
+          {plan.open_dates && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', fontWeight: 700, background: 'rgba(212,168,39,0.15)', color: '#9a7a10', borderRadius: 99, padding: '3px 12px', marginTop: 8 }}>
+              📅 Fechas por decidir
+            </span>
+          )}
           {plan.description && <p style={{ marginTop: 10, color: 'var(--ink-light)', fontSize: '0.9rem' }}>{plan.description}</p>}
         </div>
         <div style={{ width: 8, height: 60, borderRadius: 4, background: color, flexShrink: 0 }} />
@@ -335,6 +372,52 @@ export default function PlanDetailPage() {
 
       {tab === 'availability' && (
         <div className="card">
+
+          {plan.open_dates && (
+            <div style={{ marginBottom: 28 }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', marginBottom: 4 }}>Proponer fechas</h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--ink-light)', marginBottom: 16 }}>Propone cuando podria hacerse este plan</p>
+
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+                <div className="input-group" style={{ flex: 1, minWidth: 130 }}>
+                  <label>Desde</label>
+                  <input className="input" type="date" value={propStart} onChange={e => { setPropStart(e.target.value); if (!propEnd) setPropEnd(e.target.value) }} />
+                </div>
+                <div className="input-group" style={{ flex: 1, minWidth: 130 }}>
+                  <label>Hasta</label>
+                  <input className="input" type="date" value={propEnd} min={propStart} onChange={e => setPropEnd(e.target.value)} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                  <button className="btn btn-primary btn-sm" onClick={addDateProposal} disabled={!propStart || savingProp}>
+                    {savingProp ? '...' : '+ Proponer'}
+                  </button>
+                </div>
+              </div>
+
+              {dateProposals.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Propuestas del grupo</div>
+                  {dateProposals.map(p => (
+                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--sand)', borderRadius: 8, borderLeft: '3px solid var(--gold)' }}>
+                      <span style={{ fontSize: '1rem' }}>📅</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>
+                          {formatShortDate(p.proposed_start)}{p.proposed_start !== p.proposed_end ? ' — ' + formatShortDate(p.proposed_end) : ''}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--ink-light)' }}>Propuesto por {p.profile?.full_name || p.profile?.email}</div>
+                      </div>
+                      {p.user_id === user?.id && (
+                        <button className="btn btn-ghost btn-sm" style={{ padding: '4px 8px', color: '#dc2626' }} onClick={() => deleteDateProposal(p.id)}>✕</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <hr style={{ border: 'none', borderTop: '1px solid var(--border)', marginBottom: 20 }} />
+            </div>
+          )}
+
           <div style={{ marginBottom: 20 }}>
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', marginBottom: 4 }}>Tu disponibilidad</h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--ink-light)' }}>Indica si puedes venir a este plan</p>
