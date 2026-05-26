@@ -64,7 +64,8 @@ export default function PlansPage() {
     setDeletingId(null)
   }
 
-  function formatDateRange(start, end) {
+  function formatDateRange(start, end, openDates) {
+    if (openDates || !start) return 'Fechas por decidir'
     const s = new Date(start + 'T00:00:00')
     const e = new Date(end + 'T00:00:00')
     if (start === end) return format(s, "d 'de' MMMM yyyy", { locale: es })
@@ -120,9 +121,14 @@ export default function PlansPage() {
                       </button>
                     )}
                   </div>
+                  {plan.open_dates && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', fontWeight: 700, background: 'rgba(212,168,39,0.15)', color: '#9a7a10', borderRadius: 99, padding: '2px 10px', marginBottom: 8 }}>
+                      📅 Fechas por decidir
+                    </span>
+                  )}
                   <div className="plan-card-date">
                     <Calendar size={13} />
-                    {formatDateRange(plan.start_date, plan.end_date)}
+                    {formatDateRange(plan.start_date, plan.end_date, plan.open_dates)}
                   </div>
                   {plan.description && (
                     <p className="plan-card-desc">{plan.description}</p>
