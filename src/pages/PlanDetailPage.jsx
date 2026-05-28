@@ -212,9 +212,7 @@ export default function PlanDetailPage() {
 
   async function handleReminder(type) {
     setSendingReminder(type)
-    const { data: allProfiles } = await supabase.from('profiles').select('email')
-    const allEmails = (allProfiles || []).map(p => p.email)
-    await sendPlanReminder(plan, allEmails, type).catch(() => {})
+    await sendPlanReminder(plan, type).catch(() => {})
     setSendingReminder(null)
     setReminderSent(type)
     setTimeout(() => setReminderSent(null), 3000)

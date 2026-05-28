@@ -53,8 +53,7 @@ export default function CreatePlanModal({ onClose, onCreated, initialDate, isCou
     }
 
     // Notificaciones por email (fire and forget)
-    const { data: allProfiles } = await supabase.from('profiles').select('email, full_name')
-    notifyPlanCreated(plan, allProfiles, isCouple).catch(() => {})
+    notifyPlanCreated(plan).catch(() => {})
 
     setLoading(false)
     onCreated(plan)
