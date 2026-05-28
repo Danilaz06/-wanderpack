@@ -12,7 +12,7 @@ const PLAN_COLORS = ['#C4622D','#2D6E8E','#5C7A5E','#D4A827','#7C4F8E']
 
 export default function PlanDetailPage() {
   const { id } = useParams()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const navigate = useNavigate()
   const [plan, setPlan] = useState(null)
   const [members, setMembers] = useState([])
@@ -47,7 +47,7 @@ export default function PlanDetailPage() {
   const [sendingReminder, setSendingReminder] = useState(null)
   const [reminderSent, setReminderSent] = useState(null)
   const ADMIN_EMAIL = 'daniellazar1614@gmail.com'
-  const isAdmin = user?.email === ADMIN_EMAIL
+  const isAdmin = user?.email === ADMIN_EMAIL || profile?.email === ADMIN_EMAIL
 
   useEffect(() => { fetchAll() }, [id])
 
