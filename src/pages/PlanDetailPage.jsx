@@ -4,8 +4,9 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ArrowLeft, Send, Plus, Calendar, Users, MessageSquare, BarChart2, Check, Image, Download, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Send, Plus, Calendar, Users, MessageSquare, BarChart2, Check, Image, Download, Trash2, X, Bell, Clock } from 'lucide-react'
 import { Avatar } from '../components/Layout'
+import { sendPlanReminder } from '../lib/notifications'
 
 const PLAN_COLORS = ['#C4622D','#2D6E8E','#5C7A5E','#D4A827','#7C4F8E']
 
@@ -41,6 +42,12 @@ export default function PlanDetailPage() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [lightboxPhoto, setLightboxPhoto] = useState(null)
   const photoInputRef = useRef(null)
+
+  // Recordatorios admin
+  const [sendingReminder, setSendingReminder] = useState(null)
+  const [reminderSent, setReminderSent] = useState(null)
+  const ADMIN_EMAIL = 'daniellazar1614@gmail.com'
+  const isAdmin = user?.email === ADMIN_EMAIL
 
   useEffect(() => { fetchAll() }, [id])
 
@@ -203,6 +210,15 @@ export default function PlanDetailPage() {
     a.click()
   }
 
+  async function handleReminder(type) {
+    setSendingReminder(type)
+    const memberEmails = members.map(m => m.email)
+    await sendPlanReminder(plan, memberEmails, type).catch(() => {})
+    setSendingReminder(null)
+    setReminderSent(type)
+    setTimeout(() => setReminderSent(null), 3000)
+  }
+
   async function addDateProposal() {
     if (!propStart) return
     setSavingProp(true)
@@ -318,6 +334,32 @@ export default function PlanDetailPage() {
         </div>
         <div style={{ width: 8, height: 60, borderRadius: 4, background: isCouple ? '#E8507A' : color, flexShrink: 0 }} />
       </div>
+
+      {isAdmin && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, padding: '10px 14px', background: 'rgba(26,22,18,0.04)', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--border)' }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.06em', width: '100%' }}>
+            Solo tú ves esto — Admin
+          </span>
+          <button
+            className="btn btn-ghost btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+            onClick={() => handleReminder('remember')}
+            disabled={sendingReminder !== null}
+          >
+            <Bell size={14} />
+            {sendingReminder === 'remember' ? 'Enviando...' : reminderSent === 'remember' ? '✓ Enviado' : 'Recordar el plan'}
+          </button>
+          <button
+            className="btn btn-ghost btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+            onClick={() => handleReminder('soon')}
+            disabled={sendingReminder !== null}
+          >
+            <Clock size={14} />
+            {sendingReminder === 'soon' ? 'Enviando...' : reminderSent === 'soon' ? '✓ Enviado' : 'Queda poco tiempo'}
+          </button>
+        </div>
+      )}
 
       <div className="plan-tabs">
         <button className={`plan-tab ${tab === 'chat' ? 'active' : ''}`} onClick={() => setTab('chat')}>
