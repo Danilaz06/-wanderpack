@@ -3,11 +3,13 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { format } from 'date-fns'
 import { X } from 'lucide-react'
+import { notifyPlanCreated } from '../lib/notifications'
 
 const EMOJIS = ['✈️','🏝️','⛺','🏔️','🌊','🎿','🏄','🚂','🗺️','🏕️','🎭','🍕','🎉','🤿','🧗']
+const COUPLE_EMOJIS = ['💑','💕','❤️','🌹','🥂','🏖️','🍷','🎬','🛁','🌙','✨','🎀','💌','🗺️','🏡']
 const COLOR_HEX = ['#C4622D','#2D6E8E','#5C7A5E','#D4A827','#7C4F8E']
 
-export default function CreatePlanModal({ onClose, onCreated, initialDate }) {
+export default function CreatePlanModal({ onClose, onCreated, initialDate, isCouple = false }) {
   const { user } = useAuth()
   const defaultDate = initialDate ? format(initialDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
 
@@ -16,10 +18,12 @@ export default function CreatePlanModal({ onClose, onCreated, initialDate }) {
   const [openDates, setOpenDates] = useState(false)
   const [startDate, setStartDate] = useState(defaultDate)
   const [endDate, setEndDate] = useState(defaultDate)
-  const [emoji, setEmoji] = useState('✈️')
+  const [emoji, setEmoji] = useState(isCouple ? '💑' : '✈️')
   const [colorIdx, setColorIdx] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const emojiList = isCouple ? COUPLE_EMOJIS : EMOJIS
 
   async function handleCreate(e) {
     e.preventDefault()
@@ -32,6 +36,7 @@ export default function CreatePlanModal({ onClose, onCreated, initialDate }) {
       color_index: colorIdx,
       created_by: user.id,
       open_dates: openDates,
+      is_couple: isCouple,
       start_date: openDates ? null : startDate,
       end_date: openDates ? null : endDate,
     }
@@ -41,19 +46,27 @@ export default function CreatePlanModal({ onClose, onCreated, initialDate }) {
       .select()
       .single()
     if (err) { setError(err.message); setLoading(false); return }
+
     await supabase.from('plan_members').insert({ plan_id: plan.id, user_id: user.id })
     if (!openDates) {
       await supabase.from('availability').insert({ plan_id: plan.id, user_id: user.id, status: 'yes' })
     }
+
+    // Notificaciones por email (fire and forget)
+    const { data: allProfiles } = await supabase.from('profiles').select('email, full_name')
+    notifyPlanCreated(plan, allProfiles, isCouple).catch(() => {})
+
     setLoading(false)
     onCreated(plan)
   }
+
+  const accentColor = isCouple ? '#E8507A' : 'var(--terracotta)'
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-header">
-          <h3>Nuevo plan</h3>
+          <h3>{isCouple ? '💑 Nuevo plan nuestro' : 'Nuevo plan'}</h3>
           <button className="close-btn" onClick={onClose}><X size={18} /></button>
         </div>
         <form className="modal-body" onSubmit={handleCreate}>
@@ -62,12 +75,12 @@ export default function CreatePlanModal({ onClose, onCreated, initialDate }) {
           <div style={{ display: 'flex', gap: 12 }}>
             <div className="input-group" style={{ flex: 1 }}>
               <label>Nombre del plan</label>
-              <input className="input" placeholder="Ej: Ruta por Italia" value={title} onChange={e => setTitle(e.target.value)} required />
+              <input className="input" placeholder={isCouple ? 'Ej: Escapada romantic' : 'Ej: Ruta por Italia'} value={title} onChange={e => setTitle(e.target.value)} required />
             </div>
             <div className="input-group" style={{ width: 80 }}>
               <label>Emoji</label>
               <select className="input" value={emoji} onChange={e => setEmoji(e.target.value)} style={{ fontSize: '1.2rem' }}>
-                {EMOJIS.map(em => <option key={em} value={em}>{em}</option>)}
+                {emojiList.map(em => <option key={em} value={em}>{em}</option>)}
               </select>
             </div>
           </div>
@@ -77,14 +90,13 @@ export default function CreatePlanModal({ onClose, onCreated, initialDate }) {
             <textarea className="input" placeholder="Añade algunos detalles..." value={description} onChange={e => setDescription(e.target.value)} rows={2} />
           </div>
 
-          {/* Toggle fechas abiertas */}
           <div
             onClick={() => setOpenDates(!openDates)}
             style={{
               display: 'flex', alignItems: 'center', gap: 12,
               padding: '12px 14px',
-              background: openDates ? 'rgba(196,98,45,0.08)' : 'var(--sand)',
-              border: openDates ? '1.5px solid var(--terracotta)' : '1.5px solid var(--border)',
+              background: openDates ? `rgba(${isCouple ? '232,80,122' : '196,98,45'},0.08)` : 'var(--sand)',
+              border: openDates ? `1.5px solid ${accentColor}` : '1.5px solid var(--border)',
               borderRadius: 'var(--radius-sm)',
               cursor: 'pointer',
               transition: 'all 0.18s'
@@ -92,7 +104,7 @@ export default function CreatePlanModal({ onClose, onCreated, initialDate }) {
           >
             <div style={{
               width: 20, height: 20, borderRadius: 4,
-              background: openDates ? 'var(--terracotta)' : 'transparent',
+              background: openDates ? accentColor : 'transparent',
               border: openDates ? 'none' : '2px solid var(--border)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               flexShrink: 0, transition: 'all 0.15s'
@@ -102,7 +114,7 @@ export default function CreatePlanModal({ onClose, onCreated, initialDate }) {
             <div>
               <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>Fechas por decidir</div>
               <div style={{ fontSize: '0.75rem', color: 'var(--ink-light)', marginTop: 2 }}>
-                Lanzar el plan sin fecha — el grupo propone y vota cuando hacerlo
+                Lanzar el plan sin fecha — decidís cuándo hacerlo después
               </div>
             </div>
           </div>
@@ -132,7 +144,12 @@ export default function CreatePlanModal({ onClose, onCreated, initialDate }) {
           </div>
 
           <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
-            <button className="btn btn-primary" type="submit" disabled={loading || !title.trim()}>
+            <button
+              className="btn btn-primary"
+              type="submit"
+              disabled={loading || !title.trim()}
+              style={isCouple ? { background: accentColor } : {}}
+            >
               {loading ? 'Creando...' : 'Crear plan'}
             </button>
             <button className="btn btn-ghost" type="button" onClick={onClose}>Cancelar</button>

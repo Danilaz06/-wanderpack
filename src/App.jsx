@@ -7,11 +7,22 @@ import PlansPage from './pages/PlansPage'
 import PlanDetailPage from './pages/PlanDetailPage'
 import ProfilePage from './pages/ProfilePage'
 import MembersPage from './pages/MembersPage'
+import CouplePage from './pages/CouplePage'
+
+const COUPLE_EMAILS = ['daniellazar1614@gmail.com', 'aguedacelma@gmail.com']
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
   if (loading) return <div className="loading-page"><div className="spinner" /><h2>Cargando...</h2></div>
   if (!user) return <Navigate to="/auth" replace />
+  return children
+}
+
+function CoupleRoute({ children }) {
+  const { user, loading } = useAuth()
+  if (loading) return <div className="loading-page"><div className="spinner" /><h2>Cargando...</h2></div>
+  if (!user) return <Navigate to="/auth" replace />
+  if (!COUPLE_EMAILS.includes(user.email)) return <Navigate to="/calendar" replace />
   return children
 }
 
@@ -28,6 +39,7 @@ function AppRoutes() {
         <Route path="plans/:id" element={<PlanDetailPage />} />
         <Route path="members" element={<MembersPage />} />
         <Route path="profile" element={<ProfilePage />} />
+        <Route path="couple" element={<CoupleRoute><CouplePage /></CoupleRoute>} />
       </Route>
     </Routes>
   )

@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ArrowLeft, Send, Plus, Calendar, Users, MessageSquare, BarChart2, Check } from 'lucide-react'
+import { ArrowLeft, Send, Plus, Calendar, Users, MessageSquare, BarChart2, Check, Image, Download, Trash2, X } from 'lucide-react'
 import { Avatar } from '../components/Layout'
 
 const PLAN_COLORS = ['#C4622D','#2D6E8E','#5C7A5E','#D4A827','#7C4F8E']
@@ -36,6 +36,12 @@ export default function PlanDetailPage() {
   const [savingProp, setSavingProp] = useState(false)
   const [commitments, setCommitments] = useState({})
 
+  // Fotos (planes de pareja)
+  const [photos, setPhotos] = useState([])
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [lightboxPhoto, setLightboxPhoto] = useState(null)
+  const photoInputRef = useRef(null)
+
   useEffect(() => { fetchAll() }, [id])
 
   useEffect(() => {
@@ -63,7 +69,6 @@ export default function PlanDetailPage() {
     if (!planData) return
     setPlan(planData)
 
-    // Fetch members separately
     const { data: memberRows } = await supabase.from('plan_members').select('user_id').eq('plan_id', id)
     if (memberRows?.length) {
       const userIds = memberRows.map(m => m.user_id)
@@ -71,6 +76,10 @@ export default function PlanDetailPage() {
       setMembers(profiles || [])
     } else {
       setMembers([])
+    }
+
+    if (planData.is_couple) {
+      fetchPhotos()
     }
   }
 
@@ -121,7 +130,6 @@ export default function PlanDetailPage() {
   }
 
   async function fetchCommitments() {
-    if (!plan) return
     const { data: memberRows } = await supabase.from('plan_members').select('user_id').eq('plan_id', id)
     if (!memberRows?.length) return
     const userIds = memberRows.map(m => m.user_id)
@@ -141,6 +149,58 @@ export default function PlanDetailPage() {
     const { data: profiles } = await supabase.from('profiles').select('id, full_name, avatar_url, email').in('id', userIds)
     const pm = {}; profiles?.forEach(p => { pm[p.id] = p })
     setDateProposals(data.map(d => ({ ...d, profile: pm[d.user_id] })))
+  }
+
+  async function fetchPhotos() {
+    const { data } = await supabase
+      .from('couple_plan_photos')
+      .select('*')
+      .eq('plan_id', id)
+      .order('created_at', { ascending: false })
+    setPhotos(data || [])
+  }
+
+  function getPhotoUrl(filePath) {
+    const { data } = supabase.storage.from('couple-photos').getPublicUrl(filePath)
+    return data.publicUrl
+  }
+
+  async function handlePhotoUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingPhoto(true)
+    const ext = file.name.split('.').pop()
+    const filePath = `${id}/${crypto.randomUUID()}.${ext}`
+    const { error: uploadErr } = await supabase.storage
+      .from('couple-photos')
+      .upload(filePath, file)
+    if (!uploadErr) {
+      await supabase.from('couple_plan_photos').insert({
+        plan_id: id,
+        user_id: user.id,
+        file_path: filePath,
+        file_name: file.name,
+      })
+      await fetchPhotos()
+    }
+    setUploadingPhoto(false)
+    e.target.value = ''
+  }
+
+  async function deletePhoto(photo) {
+    if (!confirm('¿Eliminar esta foto?')) return
+    await supabase.storage.from('couple-photos').remove([photo.file_path])
+    await supabase.from('couple_plan_photos').delete().eq('id', photo.id)
+    setPhotos(p => p.filter(x => x.id !== photo.id))
+  }
+
+  async function downloadPhoto(photo) {
+    const url = getPhotoUrl(photo.file_path)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = photo.file_name
+    a.target = '_blank'
+    a.click()
   }
 
   async function addDateProposal() {
@@ -215,15 +275,16 @@ export default function PlanDetailPage() {
   }
 
   if (loading) return <div className="spinner" style={{ marginTop: 60 }} />
-  if (!plan) return <div>Plan no encontrado</div>
+  if (!plan) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--ink-light)' }}>Plan no encontrado</div>
 
   const color = PLAN_COLORS[plan.color_index || 0]
   const isMember = members.find(m => m.id === user?.id)
+  const isCouple = plan.is_couple
 
   return (
     <div>
-      <button className="btn btn-ghost btn-sm" style={{ marginBottom: 20 }} onClick={() => navigate('/plans')}>
-        <ArrowLeft size={15} /> Volver a planes
+      <button className="btn btn-ghost btn-sm" style={{ marginBottom: 20 }} onClick={() => navigate(-1)}>
+        <ArrowLeft size={15} /> Volver
       </button>
 
       <div className="plan-detail-header">
@@ -239,7 +300,10 @@ export default function PlanDetailPage() {
             <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.88rem', color: 'var(--ink-light)' }}>
               <Users size={15} /> {members.length} personas
             </span>
-            {!isMember && (
+            {isCouple && (
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#E8507A' }}>💑 Plan privado</span>
+            )}
+            {!isMember && !isCouple && (
               <button className="btn btn-primary btn-sm" onClick={joinPlan} disabled={joining}>
                 {joining ? '...' : '+ Unirme al plan'}
               </button>
@@ -252,7 +316,7 @@ export default function PlanDetailPage() {
           )}
           {plan.description && <p style={{ marginTop: 10, color: 'var(--ink-light)', fontSize: '0.9rem' }}>{plan.description}</p>}
         </div>
-        <div style={{ width: 8, height: 60, borderRadius: 4, background: color, flexShrink: 0 }} />
+        <div style={{ width: 8, height: 60, borderRadius: 4, background: isCouple ? '#E8507A' : color, flexShrink: 0 }} />
       </div>
 
       <div className="plan-tabs">
@@ -265,6 +329,11 @@ export default function PlanDetailPage() {
         <button className={`plan-tab ${tab === 'availability' ? 'active' : ''}`} onClick={() => setTab('availability')}>
           <Calendar size={15} /> Disponibilidad
         </button>
+        {isCouple && (
+          <button className={`plan-tab ${tab === 'photos' ? 'active' : ''}`} onClick={() => setTab('photos')}>
+            <Image size={15} /> Fotos
+          </button>
+        )}
       </div>
 
       {tab === 'chat' && (
@@ -372,7 +441,6 @@ export default function PlanDetailPage() {
 
       {tab === 'availability' && (
         <div className="card">
-
           {plan.open_dates && (
             <div style={{ marginBottom: 28 }}>
               <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', marginBottom: 4 }}>Proponer fechas</h3>
@@ -423,7 +491,7 @@ export default function PlanDetailPage() {
             <p style={{ fontSize: '0.85rem', color: 'var(--ink-light)' }}>Indica si puedes venir a este plan</p>
           </div>
 
-          <div style={{ display: 'flex', gap: 10, marginBottom: 28 }}>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 28, flexWrap: 'wrap' }}>
             {[
               { status: 'yes', label: '✅ Voy', cls: 'avail-yes' },
               { status: 'maybe', label: '🤔 Tal vez', cls: 'avail-maybe' },
@@ -443,6 +511,7 @@ export default function PlanDetailPage() {
               const statusMap = { yes: { label: 'Va', color: 'var(--sage)' }, maybe: { label: 'Tal vez', color: '#9a7a10' }, no: { label: 'No puede', color: '#dc2626' } }
               const s = avail ? statusMap[avail.status] : null
               const userCommitments = (commitments[m.id] || []).filter(c => {
+                if (!plan.start_date) return false
                 const cs = new Date(c.start_date + 'T00:00:00')
                 const ce = new Date(c.end_date + 'T00:00:00')
                 const ps = new Date(plan.start_date + 'T00:00:00')
@@ -467,7 +536,7 @@ export default function PlanDetailPage() {
                       ))}
                     </div>
                   )}
-                  {userCommitments.length === 0 && avail?.status !== 'no' && (
+                  {userCommitments.length === 0 && avail?.status !== 'no' && plan.start_date && (
                     <div style={{ marginTop: 6, paddingLeft: 44, fontSize: '0.75rem', color: 'var(--sage)' }}>
                       Sin compromisos en estas fechas
                     </div>
@@ -476,6 +545,75 @@ export default function PlanDetailPage() {
               )
             })}
           </div>
+        </div>
+      )}
+
+      {tab === 'photos' && isCouple && (
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem' }}>Fotos del plan</h3>
+            <button
+              className="btn btn-sm"
+              style={{ background: '#E8507A', color: 'white' }}
+              onClick={() => photoInputRef.current?.click()}
+              disabled={uploadingPhoto}
+            >
+              <Image size={14} /> {uploadingPhoto ? 'Subiendo...' : 'Subir foto'}
+            </button>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handlePhotoUpload}
+            />
+          </div>
+
+          {photos.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--ink-light)' }}>
+              <Image size={36} style={{ margin: '0 auto 12px', display: 'block', opacity: 0.25 }} />
+              <p style={{ marginBottom: 16 }}>Sin fotos todavía</p>
+              <button
+                className="btn btn-sm"
+                style={{ background: '#E8507A', color: 'white' }}
+                onClick={() => photoInputRef.current?.click()}
+              >
+                <Image size={14} /> Subir la primera foto
+              </button>
+            </div>
+          ) : (
+            <div className="photo-grid">
+              {photos.map(photo => (
+                <div key={photo.id} className="photo-item" onClick={() => setLightboxPhoto(photo)}>
+                  <img src={getPhotoUrl(photo.file_path)} alt={photo.file_name} loading="lazy" />
+                  <div className="photo-item-actions" onClick={e => e.stopPropagation()}>
+                    <button className="photo-action-btn download" onClick={() => downloadPhoto(photo)} title="Descargar">
+                      <Download size={14} />
+                    </button>
+                    {photo.user_id === user?.id && (
+                      <button className="photo-action-btn delete" onClick={() => deletePhoto(photo)} title="Eliminar">
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {lightboxPhoto && (
+        <div className="lightbox-overlay" onClick={() => setLightboxPhoto(null)}>
+          <button className="lightbox-close" onClick={() => setLightboxPhoto(null)}>
+            <X size={20} />
+          </button>
+          <img
+            className="lightbox-img"
+            src={getPhotoUrl(lightboxPhoto.file_path)}
+            alt={lightboxPhoto.file_name}
+            onClick={e => e.stopPropagation()}
+          />
         </div>
       )}
     </div>

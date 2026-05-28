@@ -1,9 +1,10 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
-import { Calendar, MapPin, User, LogOut, Users } from 'lucide-react'
+import { Calendar, MapPin, User, LogOut, Users, Heart } from 'lucide-react'
 
 const COLORS = ['#C4622D','#2D6E8E','#5C7A5E','#D4A827','#7C4F8E']
+const COUPLE_EMAILS = ['daniellazar1614@gmail.com', 'aguedacelma@gmail.com']
 
 export function getInitials(name) {
   if (!name) return '?'
@@ -40,6 +41,7 @@ export default function Layout() {
   const { profile, user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const isCouple = COUPLE_EMAILS.includes(user?.email)
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -63,6 +65,17 @@ export default function Layout() {
               <Icon /> {label}
             </button>
           ))}
+          {isCouple && (
+            <button
+              className={`nav-item ${location.pathname.startsWith('/couple') ? 'active' : ''}`}
+              onClick={() => navigate('/couple')}
+              style={location.pathname.startsWith('/couple')
+                ? { background: '#E8507A' }
+                : { color: 'rgba(255,192,203,0.75)' }}
+            >
+              <Heart size={18} /> Nosotros
+            </button>
+          )}
         </nav>
         <div className="sidebar-user">
           <div className="user-card" onClick={() => navigate('/profile')}>
@@ -89,12 +102,22 @@ export default function Layout() {
             className={`bottom-nav-item ${location.pathname.startsWith(path) ? 'active' : ''}`}
             onClick={() => navigate(path)}
           >
-            <Icon size={22} />
+            <Icon size={20} />
             <span>{label}</span>
           </button>
         ))}
+        {isCouple && (
+          <button
+            className={`bottom-nav-item ${location.pathname.startsWith('/couple') ? 'active' : ''}`}
+            onClick={() => navigate('/couple')}
+            style={location.pathname.startsWith('/couple') ? { color: '#E8507A' } : { color: 'rgba(255,192,203,0.6)' }}
+          >
+            <Heart size={20} />
+            <span>Nosotros</span>
+          </button>
+        )}
         <button className="bottom-nav-item" onClick={handleLogout}>
-          <LogOut size={22} />
+          <LogOut size={20} />
           <span>Salir</span>
         </button>
       </nav>

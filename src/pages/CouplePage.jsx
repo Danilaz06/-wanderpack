@@ -4,13 +4,13 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Plus, Calendar, Trash2 } from 'lucide-react'
+import { Plus, Calendar, Trash2, Heart, Image } from 'lucide-react'
 import CreatePlanModal from '../components/CreatePlanModal'
 import { Avatar } from '../components/Layout'
 
 const PLAN_COLORS = ['#C4622D','#2D6E8E','#5C7A5E','#D4A827','#7C4F8E']
 
-export default function PlansPage() {
+export default function CouplePage() {
   const [plans, setPlans] = useState([])
   const [showCreate, setShowCreate] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -22,30 +22,26 @@ export default function PlansPage() {
 
   async function fetchPlans() {
     setLoading(true)
-    // Fetch plans without nested join, exclude couple plans
     const { data: plansData, error } = await supabase
       .from('plans')
       .select('*')
-      .eq('is_couple', false)
-      .order('start_date', { ascending: true })
-    
+      .eq('is_couple', true)
+      .order('created_at', { ascending: false })
+
     if (error) { console.error(error); setLoading(false); return }
 
-    // Fetch members separately
     const { data: membersData } = await supabase
       .from('plan_members')
       .select('plan_id, user_id')
 
-    // Fetch profiles separately
     const { data: profilesData } = await supabase
       .from('profiles')
       .select('id, full_name, avatar_url, email')
 
-    // Combine manually
     const profilesMap = {}
     profilesData?.forEach(p => { profilesMap[p.id] = p })
 
-    const plansList = plansData.map(plan => {
+    const plansList = (plansData || []).map(plan => {
       const planMembers = membersData?.filter(m => m.plan_id === plan.id) || []
       const members = planMembers.map(m => profilesMap[m.user_id]).filter(Boolean)
       return { ...plan, members }
@@ -78,10 +74,12 @@ export default function PlansPage() {
     <div>
       <div className="page-header page-header-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
-          <h2>Planes</h2>
-          <p>Todos los planes del grupo</p>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Heart size={22} color="#E8507A" fill="#E8507A" /> Nosotros
+          </h2>
+          <p>Vuestros planes privados 💑</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
+        <button className="btn btn-couple" onClick={() => setShowCreate(true)}>
           <Plus size={16} /> Nuevo plan
         </button>
       </div>
@@ -90,10 +88,10 @@ export default function PlansPage() {
         <div className="spinner" />
       ) : plans.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '60px 24px' }}>
-          <div style={{ fontSize: '3rem', marginBottom: 16 }}>🏝️</div>
+          <div style={{ fontSize: '3rem', marginBottom: 16 }}>💑</div>
           <h3 style={{ fontFamily: 'var(--font-display)', marginBottom: 8 }}>Sin planes todavía</h3>
-          <p style={{ color: 'var(--ink-light)', marginBottom: 20 }}>¡Crea el primer plan para el grupo!</p>
-          <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
+          <p style={{ color: 'var(--ink-light)', marginBottom: 20 }}>¡Cread vuestro primer plan juntos!</p>
+          <button className="btn btn-couple" onClick={() => setShowCreate(true)}>
             <Plus size={16} /> Crear plan
           </button>
         </div>
@@ -108,7 +106,7 @@ export default function PlansPage() {
                 <div className="plan-card-body">
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: '1.4rem' }}>{plan.emoji || '✈️'}</span>
+                      <span style={{ fontSize: '1.4rem' }}>{plan.emoji || '💑'}</span>
                       <h3 className="plan-card-title" style={{ margin: 0 }}>{plan.title}</h3>
                     </div>
                     {isCreator && (
@@ -140,8 +138,8 @@ export default function PlansPage() {
                         <Avatar key={m.id} profile={m} />
                       ))}
                     </div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--ink-light)' }}>
-                      {plan.members?.length || 0} personas
+                    <span style={{ fontSize: '0.72rem', color: '#E8507A', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Heart size={11} fill="#E8507A" color="#E8507A" /> Privado
                     </span>
                   </div>
                 </div>
@@ -153,6 +151,7 @@ export default function PlansPage() {
 
       {showCreate && (
         <CreatePlanModal
+          isCouple={true}
           onClose={() => setShowCreate(false)}
           onCreated={() => { setShowCreate(false); fetchPlans() }}
         />

@@ -52,7 +52,7 @@ export default function CalendarPage() {
 
   return (
     <div>
-      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+      <div className="page-header page-header-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
           <h2>Calendario</h2>
           <p>Visualiza todos los planes del grupo en el tiempo</p>
