@@ -34,12 +34,19 @@ export default function IdeasPage() {
     setLoading(true)
 
     const [{ data: ideasData }, { data: votesData }, { data: profilesData }] = await Promise.all([
-      supabase.from('ideas').select('*').order('created_at', { ascending: false }),
+      supabase.from('ideas').select('*'),
       supabase.from('idea_votes').select('*'),
       supabase.from('profiles').select('id, full_name, email, avatar_url'),
     ])
 
-    setIdeas(ideasData || [])
+    const votesCountMap = {}
+    for (const v of (votesData || [])) {
+      votesCountMap[v.idea_id] = (votesCountMap[v.idea_id] || 0) + 1
+    }
+    const sorted = (ideasData || []).sort((a, b) =>
+      (votesCountMap[b.id] || 0) - (votesCountMap[a.id] || 0)
+    )
+    setIdeas(sorted)
 
     const votesMap = {}
     for (const v of (votesData || [])) {
@@ -85,12 +92,16 @@ export default function IdeasPage() {
 
     setVotes(prev => {
       const current = prev[idea.id] || []
-      return {
+      const updated = {
         ...prev,
         [idea.id]: hasVoted
           ? current.filter(id => id !== user.id)
           : [...current, user.id],
       }
+      setIdeas(prevIdeas => [...prevIdeas].sort((a, b) =>
+        (updated[b.id]?.length || 0) - (updated[a.id]?.length || 0)
+      ))
+      return updated
     })
   }
 
