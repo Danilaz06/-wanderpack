@@ -104,7 +104,16 @@ CREATE POLICY "Cada uno borra sus fotos" ON public.couple_plan_photos
     AND auth.uid() = user_id
   );
 
--- 8. Permitir al admin borrar cualquier plan (creadores solo pueden borrar los suyos)
+-- 8. Añadir horas a planes (día concreto con hora inicio/fin)
+ALTER TABLE public.plans
+  ADD COLUMN IF NOT EXISTS start_time time,
+  ADD COLUMN IF NOT EXISTS end_time time;
+
+-- 9. Añadir hora a compromisos personales
+ALTER TABLE public.commitments
+  ADD COLUMN IF NOT EXISTS time time;
+
+-- 10. Permitir al admin borrar cualquier plan (creadores solo pueden borrar los suyos)
 DROP POLICY IF EXISTS "Creador puede borrar su plan" ON public.plans;
 CREATE POLICY "Creador puede borrar su plan" ON public.plans
   FOR DELETE USING (
@@ -112,7 +121,7 @@ CREATE POLICY "Creador puede borrar su plan" ON public.plans
     OR (auth.jwt() ->> 'email') = 'daniellazar1614@gmail.com'
   );
 
--- 9. Tabla ideas de mejora
+-- 11. Tabla ideas de mejora
 CREATE TABLE IF NOT EXISTS public.ideas (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
@@ -138,7 +147,7 @@ CREATE POLICY "Admin puede actualizar ideas" ON public.ideas
     (auth.jwt() ->> 'email') = 'daniellazar1614@gmail.com'
   );
 
--- 9. Tabla votos de ideas
+-- 12. Tabla votos de ideas
 CREATE TABLE IF NOT EXISTS public.idea_votes (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   idea_id uuid REFERENCES public.ideas(id) ON DELETE CASCADE NOT NULL,

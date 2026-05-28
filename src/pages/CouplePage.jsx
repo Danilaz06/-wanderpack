@@ -79,7 +79,7 @@ export default function CouplePage() {
           <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Heart size={22} color="#E8507A" fill="#E8507A" /> Nosotros
           </h2>
-          <p>Vuestros planes privados 💑</p>
+          <p>Vuestros planes privados</p>
         </div>
         <button className="btn btn-couple" onClick={() => setShowCreate(true)}>
           <Plus size={16} /> Nuevo plan
@@ -90,9 +90,9 @@ export default function CouplePage() {
         <div className="spinner" />
       ) : plans.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '60px 24px' }}>
-          <div style={{ fontSize: '3rem', marginBottom: 16 }}>💑</div>
+          <Heart size={40} fill="#E8507A" color="#E8507A" style={{ marginBottom: 16, opacity: 0.7 }} />
           <h3 style={{ fontFamily: 'var(--font-display)', marginBottom: 8 }}>Sin planes todavía</h3>
-          <p style={{ color: 'var(--ink-light)', marginBottom: 20 }}>¡Cread vuestro primer plan juntos!</p>
+          <p style={{ color: 'var(--ink-light)', marginBottom: 20 }}>Cread vuestro primer plan juntos</p>
           <button className="btn btn-couple" onClick={() => setShowCreate(true)}>
             <Plus size={16} /> Crear plan
           </button>

@@ -4,7 +4,8 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ArrowLeft, Send, Plus, Calendar, Users, MessageSquare, BarChart2, Check, Image, Download, Trash2, X, Bell, Clock } from 'lucide-react'
+import { ArrowLeft, Send, Plus, Calendar, Users, MessageSquare, BarChart2, Check, Image, Download, Trash2, X, Bell, Clock, Heart, Pencil } from 'lucide-react'
+import CreatePlanModal from '../components/CreatePlanModal'
 import { Avatar } from '../components/Layout'
 import { sendPlanReminder } from '../lib/notifications'
 
@@ -43,9 +44,10 @@ export default function PlanDetailPage() {
   const [lightboxPhoto, setLightboxPhoto] = useState(null)
   const photoInputRef = useRef(null)
 
-  // Recordatorios admin
+  // Recordatorios admin + edición
   const [sendingReminder, setSendingReminder] = useState(null)
   const [reminderSent, setReminderSent] = useState(null)
+  const [showEdit, setShowEdit] = useState(false)
   const ADMIN_EMAIL = 'daniellazar1614@gmail.com'
   const isAdmin =
     user?.email?.toLowerCase() === ADMIN_EMAIL ||
@@ -279,12 +281,19 @@ export default function PlanDetailPage() {
     return availability.find(a => a.user_id === user?.id)?.status
   }
 
-  function formatDateRange(start, end) {
+  function formatDateRange(start, end, startTime, endTime) {
     if (!start) return 'Fechas por decidir'
     const s = new Date(start + 'T00:00:00')
     const e = new Date(end + 'T00:00:00')
-    if (start === end) return format(s, "d 'de' MMMM yyyy", { locale: es })
-    return `${format(s, "d 'de' MMM", { locale: es })} – ${format(e, "d 'de' MMMM yyyy", { locale: es })}`
+    let dateStr = start === end
+      ? format(s, "d 'de' MMMM yyyy", { locale: es })
+      : `${format(s, "d 'de' MMM", { locale: es })} – ${format(e, "d 'de' MMMM yyyy", { locale: es })}`
+    if (startTime) {
+      dateStr += ` · ${startTime.slice(0, 5)}`
+      if (endTime) dateStr += `–${endTime.slice(0, 5)}`
+      dateStr += 'h'
+    }
+    return dateStr
   }
 
   function formatShortDate(d) {
@@ -312,13 +321,15 @@ export default function PlanDetailPage() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.88rem', color: 'var(--ink-light)' }}>
-              <Calendar size={15} /> {formatDateRange(plan.start_date, plan.end_date)}
+              <Calendar size={15} /> {formatDateRange(plan.start_date, plan.end_date, plan.start_time, plan.end_time)}
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.88rem', color: 'var(--ink-light)' }}>
               <Users size={15} /> {members.length} personas
             </span>
             {isCouple && (
-              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#E8507A' }}>💑 Plan privado</span>
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#E8507A', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Heart size={13} fill="#E8507A" color="#E8507A" /> Plan privado
+              </span>
             )}
             {!isMember && !isCouple && (
               <button className="btn btn-primary btn-sm" onClick={joinPlan} disabled={joining}>
@@ -336,29 +347,42 @@ export default function PlanDetailPage() {
         <div style={{ width: 8, height: 60, borderRadius: 4, background: isCouple ? '#E8507A' : color, flexShrink: 0 }} />
       </div>
 
-      {isAdmin && (
+      {(isAdmin || plan?.created_by === user?.id) && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, padding: '12px 16px', background: 'rgba(196,98,45,0.06)', borderRadius: 'var(--radius-sm)', border: '1.5px dashed var(--terracotta)' }}>
-          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--terracotta)', textTransform: 'uppercase', letterSpacing: '0.06em', width: '100%' }}>
-            🔧 Admin — solo tú ves esto
-          </span>
+          {isAdmin && (
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--terracotta)', textTransform: 'uppercase', letterSpacing: '0.06em', width: '100%' }}>
+              🔧 Admin — solo tú ves esto
+            </span>
+          )}
           <button
             className="btn btn-secondary btn-sm"
             style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-            onClick={() => handleReminder('remember')}
-            disabled={sendingReminder !== null}
+            onClick={() => setShowEdit(true)}
           >
-            <Bell size={14} />
-            {sendingReminder === 'remember' ? 'Enviando...' : reminderSent === 'remember' ? '✓ Enviado' : 'Recordar el plan'}
+            <Pencil size={14} /> Editar plan
           </button>
-          <button
-            className="btn btn-secondary btn-sm"
-            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-            onClick={() => handleReminder('soon')}
-            disabled={sendingReminder !== null}
-          >
-            <Clock size={14} />
-            {sendingReminder === 'soon' ? 'Enviando...' : reminderSent === 'soon' ? '✓ Enviado' : 'Queda poco tiempo'}
-          </button>
+          {isAdmin && (
+            <>
+              <button
+                className="btn btn-secondary btn-sm"
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                onClick={() => handleReminder('remember')}
+                disabled={sendingReminder !== null}
+              >
+                <Bell size={14} />
+                {sendingReminder === 'remember' ? 'Enviando...' : reminderSent === 'remember' ? '✓ Enviado' : 'Recordar el plan'}
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                onClick={() => handleReminder('soon')}
+                disabled={sendingReminder !== null}
+              >
+                <Clock size={14} />
+                {sendingReminder === 'soon' ? 'Enviando...' : reminderSent === 'soon' ? '✓ Enviado' : 'Queda poco tiempo'}
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -672,6 +696,15 @@ export default function PlanDetailPage() {
             </div>
           )}
         </div>
+      )}
+
+      {showEdit && (
+        <CreatePlanModal
+          plan={plan}
+          isCouple={plan.is_couple}
+          onClose={() => setShowEdit(false)}
+          onCreated={updated => { setPlan(updated); setShowEdit(false) }}
+        />
       )}
 
       {lightboxPhoto && (

@@ -18,6 +18,7 @@ export default function ProfilePage() {
   const [cTitle, setCTitle] = useState('')
   const [cStart, setCStart] = useState('')
   const [cEnd, setCEnd] = useState('')
+  const [cTime, setCTime] = useState('')
   const [savingC, setSavingC] = useState(false)
 
   useEffect(() => { fetchCommitments() }, [])
@@ -59,10 +60,16 @@ export default function ProfilePage() {
 
   async function addCommitment(e) {
     e.preventDefault()
-    if (!cTitle.trim() || !cStart || !cEnd) return
+    if (!cTitle.trim() || !cStart) return
     setSavingC(true)
-    await supabase.from('commitments').insert({ user_id: user.id, title: cTitle.trim(), start_date: cStart, end_date: cEnd })
-    setCTitle(''); setCStart(''); setCEnd(''); setShowForm(false)
+    await supabase.from('commitments').insert({
+      user_id: user.id,
+      title: cTitle.trim(),
+      start_date: cStart,
+      end_date: cEnd || cStart,
+      time: cTime || null,
+    })
+    setCTitle(''); setCStart(''); setCEnd(''); setCTime(''); setShowForm(false)
     fetchCommitments()
     setSavingC(false)
   }
@@ -143,9 +150,13 @@ export default function ProfilePage() {
                   <input className="input" type="date" value={cStart} onChange={e => { setCStart(e.target.value); if (!cEnd) setCEnd(e.target.value) }} required />
                 </div>
                 <div className="input-group">
-                  <label>Hasta</label>
-                  <input className="input" type="date" value={cEnd} min={cStart} onChange={e => setCEnd(e.target.value)} required />
+                  <label>Hasta (opcional)</label>
+                  <input className="input" type="date" value={cEnd} min={cStart} onChange={e => setCEnd(e.target.value)} />
                 </div>
+              </div>
+              <div className="input-group">
+                <label>Hora (opcional)</label>
+                <input className="input" type="time" value={cTime} onChange={e => setCTime(e.target.value)} />
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="btn btn-primary btn-sm" type="submit" disabled={savingC}>Guardar</button>
@@ -167,6 +178,7 @@ export default function ProfilePage() {
                     <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{c.title}</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--ink-light)', marginTop: 2 }}>
                       {formatDate(c.start_date)}{c.start_date !== c.end_date ? ' - ' + formatDate(c.end_date) : ''}
+                      {c.time ? ` · ${c.time.slice(0, 5)}h` : ''}
                     </div>
                   </div>
                   <button className="btn btn-ghost btn-sm" style={{ padding: '4px 8px', color: '#dc2626' }} onClick={() => deleteCommitment(c.id)}>
