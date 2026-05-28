@@ -157,6 +157,13 @@ En PlanDetailPage, solo visible para daniellazar1614@gmail.com:
 - Credenciales: PAT de Danilaz06 guardado en Windows Credential Manager
 - User: daniellazar1614@gmail.com / Danilaz06
 
+### Chat
+- Mensajes agrupados por remitente (estilo WhatsApp)
+- Avatar y nombre solo aparecen en el primer mensaje de cada bloque
+- Timestamp solo en el último mensaje del bloque
+- Bordes de burbuja adaptativos según posición en el grupo
+- Burbujas own: terracotta. Otras: blanco con sombra sutil
+
 ## Problemas conocidos / pendientes
 - schema_updates.sql hay que ejecutarlo manualmente en Supabase SQL Editor (si no se ha hecho ya)
 - Generador de playlists en HackerGitano da 403 (app Spotify en modo desarrollo) — proyecto separado
