@@ -336,15 +336,13 @@ export default function PlanDetailPage() {
         <div style={{ width: 8, height: 60, borderRadius: 4, background: isCouple ? '#E8507A' : color, flexShrink: 0 }} />
       </div>
 
-      <div style={{ fontSize: '0.7rem', color: 'red', marginBottom: 4 }}>DEBUG email: {user?.email} | profile: {profile?.email}</div>
-
       {isAdmin && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, padding: '10px 14px', background: 'rgba(26,22,18,0.04)', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--border)' }}>
-          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.06em', width: '100%' }}>
-            Solo tú ves esto — Admin
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, padding: '12px 16px', background: 'rgba(196,98,45,0.06)', borderRadius: 'var(--radius-sm)', border: '1.5px dashed var(--terracotta)' }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--terracotta)', textTransform: 'uppercase', letterSpacing: '0.06em', width: '100%' }}>
+            🔧 Admin — solo tú ves esto
           </span>
           <button
-            className="btn btn-ghost btn-sm"
+            className="btn btn-secondary btn-sm"
             style={{ display: 'flex', alignItems: 'center', gap: 6 }}
             onClick={() => handleReminder('remember')}
             disabled={sendingReminder !== null}
@@ -353,7 +351,7 @@ export default function PlanDetailPage() {
             {sendingReminder === 'remember' ? 'Enviando...' : reminderSent === 'remember' ? '✓ Enviado' : 'Recordar el plan'}
           </button>
           <button
-            className="btn btn-ghost btn-sm"
+            className="btn btn-secondary btn-sm"
             style={{ display: 'flex', alignItems: 'center', gap: 6 }}
             onClick={() => handleReminder('soon')}
             disabled={sendingReminder !== null}
