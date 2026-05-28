@@ -104,6 +104,54 @@ CREATE POLICY "Cada uno borra sus fotos" ON public.couple_plan_photos
     AND auth.uid() = user_id
   );
 
+-- 8. Tabla ideas de mejora
+CREATE TABLE IF NOT EXISTS public.ideas (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  title text NOT NULL,
+  description text,
+  status text DEFAULT 'pendiente' CHECK (status IN ('pendiente', 'en_proceso', 'implementado')),
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE public.ideas ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Ideas visibles para autenticados" ON public.ideas;
+CREATE POLICY "Ideas visibles para autenticados" ON public.ideas
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Autenticados pueden crear ideas" ON public.ideas;
+CREATE POLICY "Autenticados pueden crear ideas" ON public.ideas
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Admin puede actualizar ideas" ON public.ideas;
+CREATE POLICY "Admin puede actualizar ideas" ON public.ideas
+  FOR UPDATE USING (
+    (auth.jwt() ->> 'email') = 'daniellazar1614@gmail.com'
+  );
+
+-- 9. Tabla votos de ideas
+CREATE TABLE IF NOT EXISTS public.idea_votes (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  idea_id uuid REFERENCES public.ideas(id) ON DELETE CASCADE NOT NULL,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  UNIQUE(idea_id, user_id)
+);
+
+ALTER TABLE public.idea_votes ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Votos visibles para autenticados" ON public.idea_votes;
+CREATE POLICY "Votos visibles para autenticados" ON public.idea_votes
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Autenticados pueden votar" ON public.idea_votes;
+CREATE POLICY "Autenticados pueden votar" ON public.idea_votes
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Cada uno borra su voto" ON public.idea_votes;
+CREATE POLICY "Cada uno borra su voto" ON public.idea_votes
+  FOR DELETE USING (auth.uid() = user_id);
+
 -- 7. Storage bucket para fotos de pareja (publico con paths UUID, control via RLS insert/delete)
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('couple-photos', 'couple-photos', true)

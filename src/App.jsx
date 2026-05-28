@@ -8,6 +8,7 @@ import PlanDetailPage from './pages/PlanDetailPage'
 import ProfilePage from './pages/ProfilePage'
 import MembersPage from './pages/MembersPage'
 import CouplePage from './pages/CouplePage'
+import IdeasPage from './pages/IdeasPage'
 
 const COUPLE_EMAILS = ['daniellazar1614@gmail.com', 'aguedacelma@gmail.com']
 
@@ -40,6 +41,7 @@ function AppRoutes() {
         <Route path="members" element={<MembersPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="couple" element={<CoupleRoute><CouplePage /></CoupleRoute>} />
+        <Route path="ideas" element={<IdeasPage />} />
       </Route>
     </Routes>
   )

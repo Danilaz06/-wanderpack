@@ -1,7 +1,7 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
-import { Calendar, MapPin, User, LogOut, Users, Heart } from 'lucide-react'
+import { Calendar, MapPin, User, LogOut, Users, Heart, Lightbulb } from 'lucide-react'
 
 const COLORS = ['#C4622D','#2D6E8E','#5C7A5E','#D4A827','#7C4F8E']
 const COUPLE_EMAILS = ['daniellazar1614@gmail.com', 'aguedacelma@gmail.com']
@@ -34,6 +34,7 @@ const NAV_ITEMS = [
   { path: '/calendar', label: 'Calendario', icon: Calendar },
   { path: '/plans', label: 'Planes', icon: MapPin },
   { path: '/members', label: 'El grupo', icon: Users },
+  { path: '/ideas', label: 'Ideas', icon: Lightbulb },
   { path: '/profile', label: 'Perfil', icon: User },
 ]
 

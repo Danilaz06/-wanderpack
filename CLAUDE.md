@@ -40,6 +40,7 @@ VITE_EMAILJS_PUBLIC_KEY=WrNQk6YHEz-mYi1EF
 - `/members` — miembros del grupo
 - `/profile` — perfil + compromisos personales
 - `/couple` — sección privada de pareja (solo Dani y Agueda)
+- `/ideas` — ideas de mejora (todos los usuarios)
 
 ## Tablas Supabase
 ```
@@ -55,6 +56,8 @@ poll_votes        (id, option_id, poll_id, user_id)
 commitments       (id, user_id, title, start_date, end_date, created_at)
 date_proposals    (id, plan_id, user_id, proposed_start, proposed_end, created_at)
 couple_plan_photos(id, plan_id, user_id, file_path, file_name, created_at)
+ideas             (id, user_id, title, description, status: pendiente/en_proceso/implementado, created_at)
+idea_votes        (id, idea_id, user_id) ← UNIQUE(idea_id, user_id)
 ```
 
 Storage buckets:
@@ -87,6 +90,7 @@ src/
     CouplePage.jsx           — lista planes de pareja
     MembersPage.jsx          — miembros del grupo
     ProfilePage.jsx          — perfil + compromisos
+    IdeasPage.jsx            — ideas de mejora: lista, votos, form, admin puede cambiar estado
 schema.sql                   — schema original (referencia)
 schema_updates.sql           — migraciones a ejecutar en Supabase SQL Editor
 ```
@@ -163,6 +167,14 @@ En PlanDetailPage, solo visible para daniellazar1614@gmail.com:
 - Timestamp solo en el último mensaje del bloque
 - Bordes de burbuja adaptativos según posición en el grupo
 - Burbujas own: terracotta. Otras: blanco con sombra sutil
+
+### Ideas de mejora (/ideas)
+- Accesible a todos los usuarios autenticados
+- Listado con votos (ThumbsUp), creación con form inline, ordenado por más reciente
+- Admin (Dani) puede cambiar el estado: pendiente → en_proceso → implementado
+- Chips de color por estado en cada idea
+- Tabla `ideas` (id, user_id, title, description, status, created_at)
+- Tabla `idea_votes` (id, idea_id, user_id) con UNIQUE constraint para evitar doble voto
 
 ## Problemas conocidos / pendientes
 - schema_updates.sql hay que ejecutarlo manualmente en Supabase SQL Editor (si no se ha hecho ya)
