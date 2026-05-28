@@ -16,7 +16,9 @@ export default function CouplePage() {
   const [loading, setLoading] = useState(true)
   const [deletingId, setDeletingId] = useState(null)
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+  const ADMIN_EMAIL = 'daniellazar1614@gmail.com'
+  const isAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL || profile?.email?.toLowerCase() === ADMIN_EMAIL
 
   useEffect(() => { fetchPlans() }, [])
 
@@ -53,7 +55,7 @@ export default function CouplePage() {
 
   async function deletePlan(e, planId, createdBy) {
     e.stopPropagation()
-    if (createdBy !== user.id) { alert('Solo el creador puede borrar este plan'); return }
+    if (createdBy !== user.id && !isAdmin) { alert('Solo el creador puede borrar este plan'); return }
     if (!confirm('¿Seguro que quieres borrar este plan?')) return
     setDeletingId(planId)
     await supabase.from('plans').delete().eq('id', planId)
@@ -99,7 +101,7 @@ export default function CouplePage() {
         <div className="plans-grid">
           {plans.map(plan => {
             const color = PLAN_COLORS[plan.color_index || 0]
-            const isCreator = plan.created_by === user.id
+            const canDelete = plan.created_by === user.id || isAdmin
             return (
               <div key={plan.id} className="plan-card" onClick={() => navigate(`/plans/${plan.id}`)}>
                 <div className="plan-card-color" style={{ background: color }} />
@@ -109,7 +111,7 @@ export default function CouplePage() {
                       <span style={{ fontSize: '1.4rem' }}>{plan.emoji || '💑'}</span>
                       <h3 className="plan-card-title" style={{ margin: 0 }}>{plan.title}</h3>
                     </div>
-                    {isCreator && (
+                    {canDelete && (
                       <button
                         className="btn btn-ghost btn-sm"
                         style={{ padding: '4px 8px', color: '#dc2626', flexShrink: 0 }}

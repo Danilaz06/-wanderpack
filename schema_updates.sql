@@ -104,7 +104,15 @@ CREATE POLICY "Cada uno borra sus fotos" ON public.couple_plan_photos
     AND auth.uid() = user_id
   );
 
--- 8. Tabla ideas de mejora
+-- 8. Permitir al admin borrar cualquier plan (creadores solo pueden borrar los suyos)
+DROP POLICY IF EXISTS "Creador puede borrar su plan" ON public.plans;
+CREATE POLICY "Creador puede borrar su plan" ON public.plans
+  FOR DELETE USING (
+    auth.uid() = created_by
+    OR (auth.jwt() ->> 'email') = 'daniellazar1614@gmail.com'
+  );
+
+-- 9. Tabla ideas de mejora
 CREATE TABLE IF NOT EXISTS public.ideas (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
