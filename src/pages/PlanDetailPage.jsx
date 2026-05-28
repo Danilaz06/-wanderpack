@@ -388,16 +388,44 @@ export default function PlanDetailPage() {
                   Sé el primero en escribir algo 💬
                 </div>
               )}
-              {messages.map(msg => {
+              {messages.map((msg, i) => {
                 const isOwn = msg.user_id === user?.id
                 const sender = msg.profiles
+                const prev = messages[i - 1]
+                const next = messages[i + 1]
+                const isFirst = !prev || prev.user_id !== msg.user_id
+                const isLast = !next || next.user_id !== msg.user_id
                 return (
-                  <div key={msg.id} className={`chat-message ${isOwn ? 'own' : ''}`}>
-                    {!isOwn && <Avatar profile={sender} />}
-                    <div>
-                      {!isOwn && <div className="chat-sender">{sender?.full_name || sender?.email || 'Alguien'}</div>}
-                      <div className={`chat-bubble ${isOwn ? 'own' : 'other'}`}>{msg.content}</div>
-                      <div className="chat-meta">{format(new Date(msg.created_at), 'HH:mm')}</div>
+                  <div
+                    key={msg.id}
+                    className={`chat-message ${isOwn ? 'own' : ''}`}
+                    style={{ marginBottom: isLast ? 8 : 2, alignItems: 'flex-end' }}
+                  >
+                    {/* Avatar solo en el último de cada grupo */}
+                    {!isOwn && (
+                      <div style={{ width: 32, flexShrink: 0 }}>
+                        {isLast && <Avatar profile={sender} />}
+                      </div>
+                    )}
+                    <div style={{ maxWidth: '72%' }}>
+                      {/* Nombre solo en el primero del grupo */}
+                      {!isOwn && isFirst && (
+                        <div className="chat-sender">{sender?.full_name || sender?.email || 'Alguien'}</div>
+                      )}
+                      <div
+                        className={`chat-bubble ${isOwn ? 'own' : 'other'}`}
+                        style={{
+                          borderBottomRightRadius: isOwn && !isLast ? 4 : undefined,
+                          borderBottomLeftRadius: !isOwn && !isLast ? 4 : undefined,
+                          borderTopRightRadius: isOwn && !isFirst ? 4 : undefined,
+                          borderTopLeftRadius: !isOwn && !isFirst ? 4 : undefined,
+                        }}
+                      >
+                        {msg.content}
+                      </div>
+                      {isLast && (
+                        <div className="chat-meta">{format(new Date(msg.created_at), 'HH:mm')}</div>
+                      )}
                     </div>
                   </div>
                 )
