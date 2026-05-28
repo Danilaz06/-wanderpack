@@ -47,7 +47,9 @@ export default function PlanDetailPage() {
   const [sendingReminder, setSendingReminder] = useState(null)
   const [reminderSent, setReminderSent] = useState(null)
   const ADMIN_EMAIL = 'daniellazar1614@gmail.com'
-  const isAdmin = user?.email === ADMIN_EMAIL || profile?.email === ADMIN_EMAIL
+  const isAdmin =
+    user?.email?.toLowerCase() === ADMIN_EMAIL ||
+    profile?.email?.toLowerCase() === ADMIN_EMAIL
 
   useEffect(() => { fetchAll() }, [id])
 
@@ -333,6 +335,8 @@ export default function PlanDetailPage() {
         </div>
         <div style={{ width: 8, height: 60, borderRadius: 4, background: isCouple ? '#E8507A' : color, flexShrink: 0 }} />
       </div>
+
+      <div style={{ fontSize: '0.7rem', color: 'red', marginBottom: 4 }}>DEBUG email: {user?.email} | profile: {profile?.email}</div>
 
       {isAdmin && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, padding: '10px 14px', background: 'rgba(26,22,18,0.04)', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--border)' }}>
