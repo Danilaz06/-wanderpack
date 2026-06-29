@@ -77,7 +77,7 @@ public class MainActivity extends Activity {
             @Override
             public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> callback,
                                              FileChooserParams params) {
-                if (fileCallback != null) fileCallback.onReceiveResult(null);
+                if (fileCallback != null) fileCallback.onReceiveValue(null);
                 fileCallback = callback;
                 Intent intent = params.createIntent();
                 startActivityForResult(intent, FILE_CHOOSER_REQUEST);
@@ -106,7 +106,7 @@ public class MainActivity extends Activity {
                 if (s != null) results = new Uri[]{Uri.parse(s)};
             }
             if (fileCallback != null) {
-                fileCallback.onReceiveResult(results);
+                fileCallback.onReceiveValue(results);
                 fileCallback = null;
             }
         }
